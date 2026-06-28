@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gliopredict - Dasbor Analisis MRI</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #1e3a8a; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; margin-top: 0; }
+        .theme-title { font-size: 14px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .upload-section { background: #eff6ff; border: 2px dashed #3b82f6; padding: 40px 20px; text-align: center; border-radius: 6px; margin: 20px 0; }
+        input[type="file"] { margin-bottom: 15px; }
+        button { background: #1e3a8a; color: white; border: none; padding: 12px 25px; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; max-width: 300px; }
+        button:hover { background: #2563eb; }
+        .loading { display: none; color: #2563eb; font-weight: bold; margin-top: 15px; }
+        .result-container { display: none; margin-top: 30px; border-top: 2px solid #e5e7eb; padding-top: 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+        .card { border: 1px solid #e5e7eb; padding: 20px; border-radius: 6px; background: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .card h3 { margin-top: 0; color: #1e3a8a; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; }
+        .metric { font-size: 24px; font-weight: bold; color: #2563eb; margin: 10px 0; }
+        .img-preview { width: 100%; border-radius: 4px; border: 1px solid #e5e7eb; margin-top: 10px; background-color: #000; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="theme-title">Proyek Dasbor Klinis</div>
+    <h1>Gliopredict: Segmentasi & Prognosis Tumor Otak</h1>
+    <p>Silakan unggah file citra MRI otak berformat <strong>.nii</strong> atau <strong>.nii.gz</strong> pasien untuk menjalankan kalkulasi segmentasi tumor live dan estimasi prognosis secara otomatis.</p>
+    
+    <div class="upload-section">
+        <input type="file" id="mriFile" accept=".nii,.nii.gz"><br>
+        <button onclick="prosesSegmentasi()">Mulai Analisis Pasien</button>
+        <p class="loading" id="loadingText">⏳ Sedang memproses model di server backend... Mohon tunggu sekitar 15-30 detik.</p>
+    </div>
+
+    <div class="result-container" id="resultContainer">
+        <h2>Hasil Analisis Medis Terintegrasi</h2>
+        <div class="grid">
+            <div class="card">
+                <h3>Metrik Hasil Komputasi</h3>
+                <p>Estimasi Volume Tumor:</p>
+                <div class="metric"><span id="valVolume">-</span> cm³</div>
+                <p>Prediksi Sisa Harapan Hidup:</p>
+                <div class="metric" style="color: #dc2626;"><span id="valHidup">-</span> Bulan</div>
+            </div>
+            <div class="card">
+                <h3>Visualisasi Slice 2D (Overlay)</h3>
+                <img id="view2D" class="img-preview" src="" alt="Hasil Render Segmentasi 2D">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Ganti URL ini dengan URL Hugging Face Spaces kamu jika sudah dideploy
+    const API_URL = "https://adika28-gliopredict-backend.hf.space/predict";
+
+    async function prosesSegmentasi() {
+        const fileInput = document.getElementById('mriFile');
+        const loadingText = document.getElementById('loadingText');
+        const resultContainer = document.getElementById('resultContainer');
+        
+        if (fileInput.files.length === 0) {
+            alert("Silakan pilih file MRI (.nii atau .nii.gz) terlebih dahulu!");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        loadingText.style.display = "block";
+        resultContainer.style.display = "none";
+
+        try {
+            const response = await fetch(API_URL, {
+                method: "POST",
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || "Gagal memproses data di server.");
+            }
+
+            const data = await response.json();
+            
+            // Masukkan data hasil response API ke elemen HTML
+            document.getElementById('valVolume').innerText = data.volume_tumor;
+            document.getElementById('valHidup').innerText = data.estimasi_hidup_bulan;
+            document.getElementById('view2D').src = data.image_2d;
+            
+            resultContainer.style.display = "block";
+        } catch (error) {
+            alert("Terjadi Kesalahan: " + error.message);
+        } finally {
+            loadingText.style.display = "none";
+        }
+    }
+</script>
+</body>
+</html>
